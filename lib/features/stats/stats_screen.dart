@@ -42,32 +42,77 @@ class StatsScreen extends ConsumerWidget {
                   Text('Last 7 days', style: Theme.of(context).textTheme.headlineSmall),
                   const SizedBox(height: 16),
                   GlassCard(
-                    padding: const EdgeInsets.fromLTRB(8, 20, 20, 12),
+                    padding: const EdgeInsets.fromLTRB(8, 32, 20, 12),
                     child: SizedBox(
-                      height: 200,
+                      height: 220,
                       child: BarChart(
                         BarChartData(
                           maxY: maxY,
-                          gridData: const FlGridData(show: false),
+                          minY: 0,
+                          alignment: BarChartAlignment.spaceAround,
+                          gridData: FlGridData(
+                            show: true,
+                            drawVerticalLine: false,
+                            horizontalInterval: maxY <= 5 ? 1 : (maxY / 4).ceilToDouble(),
+                            getDrawingHorizontalLine: (value) => FlLine(
+                              color: Theme.of(context).dividerColor,
+                              strokeWidth: 1,
+                              dashArray: [4, 4],
+                            ),
+                          ),
                           borderData: FlBorderData(show: false),
                           titlesData: FlTitlesData(
-                            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                             rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                             topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            leftTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 24,
+                                interval: maxY <= 5 ? 1 : (maxY / 4).ceilToDouble(),
+                                getTitlesWidget: (value, meta) {
+                                  if (value == 0 || value > maxY) return const SizedBox.shrink();
+                                  return Text(
+                                    value.toInt().toString(),
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  );
+                                },
+                              ),
+                            ),
                             bottomTitles: AxisTitles(
                               sideTitles: SideTitles(
                                 showTitles: true,
                                 getTitlesWidget: (value, meta) {
                                   final idx = value.toInt();
                                   if (idx < 0 || idx >= last7.length) return const SizedBox.shrink();
+                                  final isToday = idx == last7.length - 1;
                                   return Padding(
                                     padding: const EdgeInsets.only(top: 8),
                                     child: Text(
                                       DateFormat('E').format(last7[idx]),
-                                      style: Theme.of(context).textTheme.bodySmall,
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                            color: isToday
+                                                ? Theme.of(context).colorScheme.primary
+                                                : null,
+                                            fontWeight: isToday ? FontWeight.bold : null,
+                                          ),
                                     ),
                                   );
                                 },
+                              ),
+                            ),
+                          ),
+                          barTouchData: BarTouchData(
+                            touchTooltipData: BarTouchTooltipData(
+                              getTooltipColor: (_) => Theme.of(context).colorScheme.surface,
+                              tooltipBorder: BorderSide(color: Theme.of(context).dividerColor),
+                              tooltipPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              tooltipMargin: 8,
+                              getTooltipItem: (group, groupIndex, rod, rodIndex) => BarTooltipItem(
+                                '${rod.toY.toInt()}/${habits.length}',
+                                Theme.of(context).textTheme.bodySmall!.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    ),
                               ),
                             ),
                           ),
@@ -75,11 +120,12 @@ class StatsScreen extends ConsumerWidget {
                             final count = data[last7[i]] ?? 0;
                             return BarChartGroupData(
                               x: i,
+                              showingTooltipIndicators: count > 0 ? [0] : [],
                               barRods: [
                                 BarChartRodData(
                                   toY: count.toDouble(),
                                   width: 18,
-                                  borderRadius: BorderRadius.circular(6),
+                                  borderRadius: BorderRadius.vertical(top: Radius.circular(6)),
                                   gradient: LinearGradient(
                                     begin: Alignment.bottomCenter,
                                     end: Alignment.topCenter,
@@ -88,11 +134,17 @@ class StatsScreen extends ConsumerWidget {
                                       Theme.of(context).colorScheme.secondary,
                                     ],
                                   ),
+                                  backDrawRodData: BackgroundBarChartRodData(
+                                    show: true,
+                                    toY: maxY,
+                                    color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                                  ),
                                 ),
                               ],
                             );
                           }),
                         ),
+                        duration: const Duration(milliseconds: 300),
                       ),
                     ),
                   ),
