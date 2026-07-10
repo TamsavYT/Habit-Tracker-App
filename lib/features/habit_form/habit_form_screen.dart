@@ -80,14 +80,24 @@ class _HabitFormScreenState extends ConsumerState<HabitFormScreen> {
 
     final id = await repo.saveHabit(habit);
 
-    if (_reminderTime != null) {
-      await NotificationService.scheduleHabitReminder(
-        habitId: id,
-        habitName: name,
-        minutesSinceMidnight: _reminderTime!.hour * 60 + _reminderTime!.minute,
-      );
-    } else {
-      await NotificationService.cancelHabitReminder(id);
+    try {
+      if (_reminderTime != null) {
+        await NotificationService.scheduleHabitReminder(
+          habitId: id,
+          habitName: name,
+          minutesSinceMidnight: _reminderTime!.hour * 60 + _reminderTime!.minute,
+        );
+      } else {
+        await NotificationService.cancelHabitReminder(id);
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Couldn't schedule reminder — check notification permissions"),
+          ),
+        );
+      }
     }
 
     if (mounted) Navigator.of(context).pop();

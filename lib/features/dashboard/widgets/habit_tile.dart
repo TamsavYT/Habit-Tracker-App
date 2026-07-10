@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../data/models/habit.dart';
 import '../../../shared/widgets/glass_card.dart';
@@ -57,7 +58,12 @@ class HabitTile extends StatelessWidget {
             ),
             // Once completed, the checkbox is locked — swipe right to undo instead.
             GestureDetector(
-              onTap: completedToday ? null : onToggle,
+              onTap: completedToday
+                  ? null
+                  : () {
+                      HapticFeedback.mediumImpact();
+                      onToggle();
+                    },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 250),
                 width: 32,
@@ -67,8 +73,20 @@ class HabitTile extends StatelessWidget {
                   color: completedToday ? color : Colors.transparent,
                   border: Border.all(color: color, width: 2),
                 ),
+                // Keyed so the bounce restarts each time the icon appears —
+                // scoped to just the icon so it doesn't force the parent
+                // AnimatedContainer to remount and lose its own color/border
+                // transition.
                 child: completedToday
-                    ? const Icon(Icons.check, size: 18, color: Colors.white)
+                    ? TweenAnimationBuilder<double>(
+                        key: ValueKey(completedToday),
+                        tween: Tween(begin: 0.6, end: 1.0),
+                        duration: const Duration(milliseconds: 450),
+                        curve: Curves.elasticOut,
+                        builder: (context, scale, child) =>
+                            Transform.scale(scale: scale, child: child),
+                        child: const Icon(Icons.check, size: 18, color: Colors.white),
+                      )
                     : null,
               ),
             ),

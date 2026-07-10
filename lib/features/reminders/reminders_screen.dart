@@ -6,6 +6,14 @@ import '../../data/models/periodic_reminder.dart';
 import '../../data/providers.dart';
 import '../../shared/widgets/glass_card.dart';
 
+void _showScheduleError(BuildContext context) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text("Couldn't schedule reminder — check notification permissions"),
+    ),
+  );
+}
+
 class RemindersScreen extends ConsumerWidget {
   const RemindersScreen({super.key});
 
@@ -98,16 +106,20 @@ class _ReminderTile extends ConsumerWidget {
               onChanged: (v) async {
                 reminder.enabled = v;
                 await repo.save(reminder);
-                if (v) {
-                  await NotificationService.schedulePeriodicReminder(
-                    reminderId: reminder.id,
-                    label: reminder.label,
-                    startMinutes: reminder.startMinutes,
-                    endMinutes: reminder.endMinutes,
-                    intervalMinutes: reminder.intervalMinutes,
-                  );
-                } else {
-                  await NotificationService.cancelPeriodicReminder(reminder.id);
+                try {
+                  if (v) {
+                    await NotificationService.schedulePeriodicReminder(
+                      reminderId: reminder.id,
+                      label: reminder.label,
+                      startMinutes: reminder.startMinutes,
+                      endMinutes: reminder.endMinutes,
+                      intervalMinutes: reminder.intervalMinutes,
+                    );
+                  } else {
+                    await NotificationService.cancelPeriodicReminder(reminder.id);
+                  }
+                } catch (_) {
+                  if (context.mounted) _showScheduleError(context);
                 }
               },
             ),
@@ -162,13 +174,17 @@ class _ReminderFormState extends ConsumerState<_ReminderForm> {
     final repo = ref.read(reminderRepositoryProvider);
     final id = await repo.save(reminder);
 
-    await NotificationService.schedulePeriodicReminder(
-      reminderId: id,
-      label: label,
-      startMinutes: startMinutes,
-      endMinutes: endMinutes,
-      intervalMinutes: _interval,
-    );
+    try {
+      await NotificationService.schedulePeriodicReminder(
+        reminderId: id,
+        label: label,
+        startMinutes: startMinutes,
+        endMinutes: endMinutes,
+        intervalMinutes: _interval,
+      );
+    } catch (_) {
+      if (mounted) _showScheduleError(context);
+    }
 
     if (mounted) Navigator.of(context).pop();
   }

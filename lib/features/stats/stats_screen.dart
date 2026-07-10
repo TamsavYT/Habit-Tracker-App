@@ -97,6 +97,61 @@ class StatsScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 28),
+                  Text('Completion rate', style: Theme.of(context).textTheme.headlineSmall),
+                  const SizedBox(height: 16),
+                  FutureBuilder<_CompletionRates>(
+                    future: _completionRates(repo, habits),
+                    builder: (context, ratesSnapshot) {
+                      final rates = ratesSnapshot.data;
+                      if (rates == null) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+                      return Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _RateCard(label: 'Last 30 days', rate: rates.overall30),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _RateCard(label: 'Last 90 days', rate: rates.overall90),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          ...habits.map((h) {
+                            final perHabit = rates.perHabit[h.id]!;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: GlassCard(
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(h.name, style: Theme.of(context).textTheme.titleMedium),
+                                    ),
+                                    Text(
+                                      '${(perHabit.$1 * 100).round()}% / 30d',
+                                      style: Theme.of(context).textTheme.bodySmall,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      '${(perHabit.$2 * 100).round()}% / 90d',
+                                      style: Theme.of(context).textTheme.bodySmall,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 28),
                   Text('Best streaks', style: Theme.of(context).textTheme.headlineSmall),
                   const SizedBox(height: 12),
                   ...(() {
@@ -137,5 +192,76 @@ class StatsScreen extends ConsumerWidget {
       }
     }
     return result;
+  }
+
+  /// Completion rate = completed / scheduled days within the window, so
+  /// custom-day habits aren't penalized for days they're not due on.
+  Future<_CompletionRates> _completionRates(HabitRepository repo, List<Habit> habits) async {
+    final today = dateOnly(DateTime.now());
+    final perHabit = <int, (double, double)>{};
+    var scheduled30 = 0, completed30 = 0, scheduled90 = 0, completed90 = 0;
+
+    for (final habit in habits) {
+      final logs = await repo.logsForHabit(habit.id);
+      final completedDates = logs.map((l) => dateOnly(l.date)).toSet();
+
+      (int, int) rateCounts(int windowDays) {
+        var sched = 0, comp = 0;
+        for (var i = 0; i < windowDays; i++) {
+          final d = today.subtract(Duration(days: i));
+          if (!isScheduledDay(habit, d)) continue;
+          sched++;
+          if (completedDates.contains(d)) comp++;
+        }
+        return (sched, comp);
+      }
+
+      final (sched30, comp30) = rateCounts(30);
+      final (sched90, comp90) = rateCounts(90);
+      perHabit[habit.id] = (
+        sched30 == 0 ? 0.0 : comp30 / sched30,
+        sched90 == 0 ? 0.0 : comp90 / sched90,
+      );
+      scheduled30 += sched30;
+      completed30 += comp30;
+      scheduled90 += sched90;
+      completed90 += comp90;
+    }
+
+    return _CompletionRates(
+      overall30: scheduled30 == 0 ? 0.0 : completed30 / scheduled30,
+      overall90: scheduled90 == 0 ? 0.0 : completed90 / scheduled90,
+      perHabit: perHabit,
+    );
+  }
+}
+
+class _CompletionRates {
+  _CompletionRates({required this.overall30, required this.overall90, required this.perHabit});
+  final double overall30;
+  final double overall90;
+  final Map<int, (double, double)> perHabit;
+}
+
+class _RateCard extends StatelessWidget {
+  const _RateCard({required this.label, required this.rate});
+  final String label;
+  final double rate;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${(rate * 100).round()}%',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 4),
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
+        ],
+      ),
+    );
   }
 }

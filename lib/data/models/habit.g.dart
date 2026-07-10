@@ -77,6 +77,11 @@ const HabitSchema = CollectionSchema(
       id: 11,
       name: r'reminderMinutes',
       type: IsarType.long,
+    ),
+    r'sortOrder': PropertySchema(
+      id: 12,
+      name: r'sortOrder',
+      type: IsarType.long,
     )
   },
   estimateSize: _habitEstimateSize,
@@ -151,6 +156,7 @@ void _habitSerialize(
   writer.writeDateTime(offsets[9], object.lastCompletedDate);
   writer.writeString(offsets[10], object.name);
   writer.writeLong(offsets[11], object.reminderMinutes);
+  writer.writeLong(offsets[12], object.sortOrder);
 }
 
 Habit _habitDeserialize(
@@ -175,6 +181,7 @@ Habit _habitDeserialize(
   object.lastCompletedDate = reader.readDateTimeOrNull(offsets[9]);
   object.name = reader.readString(offsets[10]);
   object.reminderMinutes = reader.readLongOrNull(offsets[11]);
+  object.sortOrder = reader.readLong(offsets[12]);
   return object;
 }
 
@@ -211,6 +218,8 @@ P _habitDeserializeProp<P>(
       return (reader.readString(offset)) as P;
     case 11:
       return (reader.readLongOrNull(offset)) as P;
+    case 12:
+      return (reader.readLong(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
@@ -1523,6 +1532,59 @@ extension HabitQueryFilter on QueryBuilder<Habit, Habit, QFilterCondition> {
       ));
     });
   }
+
+  QueryBuilder<Habit, Habit, QAfterFilterCondition> sortOrderEqualTo(
+      int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'sortOrder',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Habit, Habit, QAfterFilterCondition> sortOrderGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'sortOrder',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Habit, Habit, QAfterFilterCondition> sortOrderLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'sortOrder',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Habit, Habit, QAfterFilterCondition> sortOrderBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'sortOrder',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
 }
 
 extension HabitQueryObject on QueryBuilder<Habit, Habit, QFilterCondition> {}
@@ -1659,6 +1721,18 @@ extension HabitQuerySortBy on QueryBuilder<Habit, Habit, QSortBy> {
   QueryBuilder<Habit, Habit, QAfterSortBy> sortByReminderMinutesDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'reminderMinutes', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Habit, Habit, QAfterSortBy> sortBySortOrder() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sortOrder', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Habit, Habit, QAfterSortBy> sortBySortOrderDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sortOrder', Sort.desc);
     });
   }
 }
@@ -1807,6 +1881,18 @@ extension HabitQuerySortThenBy on QueryBuilder<Habit, Habit, QSortThenBy> {
       return query.addSortBy(r'reminderMinutes', Sort.desc);
     });
   }
+
+  QueryBuilder<Habit, Habit, QAfterSortBy> thenBySortOrder() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sortOrder', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Habit, Habit, QAfterSortBy> thenBySortOrderDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'sortOrder', Sort.desc);
+    });
+  }
 }
 
 extension HabitQueryWhereDistinct on QueryBuilder<Habit, Habit, QDistinct> {
@@ -1883,6 +1969,12 @@ extension HabitQueryWhereDistinct on QueryBuilder<Habit, Habit, QDistinct> {
   QueryBuilder<Habit, Habit, QDistinct> distinctByReminderMinutes() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'reminderMinutes');
+    });
+  }
+
+  QueryBuilder<Habit, Habit, QDistinct> distinctBySortOrder() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'sortOrder');
     });
   }
 }
@@ -1963,6 +2055,12 @@ extension HabitQueryProperty on QueryBuilder<Habit, Habit, QQueryProperty> {
   QueryBuilder<Habit, int?, QQueryOperations> reminderMinutesProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'reminderMinutes');
+    });
+  }
+
+  QueryBuilder<Habit, int, QQueryOperations> sortOrderProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'sortOrder');
     });
   }
 }

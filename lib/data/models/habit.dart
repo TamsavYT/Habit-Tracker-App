@@ -37,4 +37,8 @@ class Habit {
 
   @Index()
   DateTime? lastCompletedDate;
+
+  /// Manual drag-to-reorder position within a category. Existing habits
+  /// default to 0, so ties fall back to [createdAt] ordering.
+  int sortOrder = 0;
 }

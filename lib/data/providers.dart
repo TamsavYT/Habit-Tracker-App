@@ -20,6 +20,9 @@ final activeHabitsProvider = StreamProvider<List<Habit>>((ref) {
   return ref.watch(habitRepositoryProvider).watchActiveHabits();
 });
 
+/// Selected category filter on the dashboard's Today list. Null means "All".
+final selectedCategoryProvider = StateProvider<String?>((ref) => null);
+
 final habitLogsProvider = StreamProvider.family<List<HabitLog>, int>((ref, habitId) {
   return ref.watch(habitRepositoryProvider).watchLogsForHabit(habitId);
 });

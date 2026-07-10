@@ -13,6 +13,15 @@ bool isScheduledDay(Habit habit, DateTime date) {
   return habit.customDays.contains(date.weekday);
 }
 
+/// Streak lengths that trigger a one-time celebration when crossed upward.
+const milestoneStreaks = <int>[7, 30, 100];
+
+int _compareHabitOrder(Habit a, Habit b) {
+  final bySortOrder = a.sortOrder.compareTo(b.sortOrder);
+  if (bySortOrder != 0) return bySortOrder;
+  return a.createdAt.compareTo(b.createdAt);
+}
+
 class HabitRepository {
   HabitRepository(this._isar);
   final Isar _isar;
@@ -22,11 +31,26 @@ class HabitRepository {
         .filter()
         .archivedEqualTo(false)
         .watch(fireImmediately: true)
-        .map((list) => list..sort((a, b) => a.createdAt.compareTo(b.createdAt)));
+        .map((list) => list..sort(_compareHabitOrder));
   }
 
-  Future<List<Habit>> allActiveHabits() =>
-      _isar.habits.filter().archivedEqualTo(false).findAll();
+  Future<List<Habit>> allActiveHabits() => _isar.habits
+      .filter()
+      .archivedEqualTo(false)
+      .findAll()
+      .then((list) => list..sort(_compareHabitOrder));
+
+  /// Persists a new relative order for [orderedHabits] in one write
+  /// transaction. Callers pass habits already in their desired order
+  /// (e.g. after a drag-to-reorder within a category group).
+  Future<void> updateSortOrder(List<Habit> orderedHabits) async {
+    await _isar.writeTxn(() async {
+      for (var i = 0; i < orderedHabits.length; i++) {
+        orderedHabits[i].sortOrder = i;
+        await _isar.habits.put(orderedHabits[i]);
+      }
+    });
+  }
 
   Future<Habit?> getById(int id) => _isar.habits.get(id);
 
@@ -66,9 +90,11 @@ class HabitRepository {
   }
 
   /// Toggles completion for a given day and recomputes the cached streak.
-  Future<void> toggleCompletion(int habitId, DateTime date) async {
+  /// Returns the milestone value (7, 30, 100...) if this toggle just pushed
+  /// [Habit.currentStreak] up past a milestone, otherwise null.
+  Future<int?> toggleCompletion(int habitId, DateTime date) async {
     final d = dateOnly(date);
-    await _isar.writeTxn(() async {
+    return _isar.writeTxn(() async {
       final existing = await _isar.habitLogs
           .filter()
           .habitIdEqualTo(habitId)
@@ -85,13 +111,14 @@ class HabitRepository {
         await _isar.habitLogs.put(log);
       }
 
-      await _recomputeStreak(habitId);
+      return _recomputeStreak(habitId);
     });
   }
 
-  Future<void> _recomputeStreak(int habitId) async {
+  Future<int?> _recomputeStreak(int habitId) async {
     final habit = await _isar.habits.get(habitId);
-    if (habit == null) return;
+    if (habit == null) return null;
+    final previousStreak = habit.currentStreak;
 
     final logs = await _isar.habitLogs
         .filter()
@@ -103,7 +130,7 @@ class HabitRepository {
       habit.currentStreak = 0;
       habit.lastCompletedDate = null;
       await _isar.habits.put(habit);
-      return;
+      return null;
     }
 
     final dates = logs.map((l) => l.date).toSet();
@@ -151,5 +178,10 @@ class HabitRepository {
     habit.bestStreak = best > habit.bestStreak ? best : habit.bestStreak;
     habit.lastCompletedDate = logs.first.date;
     await _isar.habits.put(habit);
+
+    if (current > previousStreak && milestoneStreaks.contains(current)) {
+      return current;
+    }
+    return null;
   }
 }
